@@ -2,7 +2,7 @@
 module.exports = {
   reactStrictMode: true,
   experimental: {
-    serverActions: true,
+    serverActions: {}, // previously: serverActions: true,
   },
   images: {
     remotePatterns: [

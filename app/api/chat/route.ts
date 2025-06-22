@@ -1,6 +1,3 @@
-import { HumanloopStream } from '@/lib/humanloop-stream'
-import { OpenAIStream, StreamingTextResponse } from "ai";
-import { HumanloopClient } from 'humanloop'
 import Groq from "groq-sdk";
 
 export const runtime = 'nodejs';
@@ -9,13 +6,7 @@ export const runtime = 'nodejs';
 import mysql from "mysql2/promise";
 // export const runtime = 'edge'
 
-const HUMANLOOP_API_KEY = process.env.GROQ_API_KEY
-
-const groq = new Groq({ apiKey: "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" });
-
-const client = new HumanloopClient({
-  apiKey: HUMANLOOP_API_KEY || ''
-})
+const groq = new Groq({ apiKey: "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" });
 
 const db = mysql.createPool({
   host: 'localhost',
@@ -28,11 +19,10 @@ const db = mysql.createPool({
 });
 
 async function get_attendance({ roll_number }: any) {
-  console.log("parameters: " + roll_number)
+  console.log("parameters to get attendance is : " + roll_number)
   try {
     const [rows]: any = await db.execute("SELECT attendance_percentage FROM students WHERE id = ?", [roll_number]);
     if (rows.length > 0) {
-      console.log("tool response: " + rows[0].attendance_percentage)
       return `Your attendance is ${rows[0].attendance_percentage}%.`;
     } else {
       return "Roll number not found. Please check and try again.";
@@ -46,7 +36,7 @@ async function get_attendance({ roll_number }: any) {
 // Function to fetch timetable by year and department
 async function get_timetable({ year, branch }: any) {
 
-  console.log("parameters: " + year + "  " + branch)
+  console.log("parameters to get timetable are : " + year + "  " + branch)
   try {
     const [rows]: any = await db.execute(
       "SELECT day, time_slot, subject FROM timetable WHERE year = ? AND branch = ? ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), time_slot",
@@ -65,7 +55,6 @@ async function get_timetable({ year, branch }: any) {
         timetableText += `  ⏰ ${time_slot} - ${subject}\n`;
       });
 
-      console.log("tool respose: " + timetableText)
       return timetableText;
     } else {
       return "Timetable not found for the given year and branch.";
@@ -103,7 +92,7 @@ const tools = [
         type: "object",
         properties: {
           year: {
-            type: "int",
+            type: "integer",
             description: "The academic year (e.g., 1,2,3)."
           },
           branch: {
@@ -123,6 +112,7 @@ const systemMessage = {
   content: ` You are DYPCET AI Assistant, a helpful, polite, and knowledgeable virtual assistant for Dr. D. Y. Patil College of Engineering & Technology (DYPCET).
     Your job is to assist students by providing accurate and relevant information about the college.
     You have access to certain tools to fetch student-specific data such as attendance and class timetable.
+    If the users input has some spelling mistakes,please correct them and analyse the tool use required or not.
 
 🧠 Personality & Behavior Guidelines
 
@@ -147,6 +137,35 @@ const systemMessage = {
     Try to strictly generate the response in proper markdown format so that it would render properly on frontend UI.
     you can decide the markdown style/design according to the scenario such as generating table,bold heading,etc.
     Try to make the chat interactive with adding some imojis and icons as you want.
+
+    staff information -
+    Principal
+Name: Dr. Santosh D. Chede
+
+Designation: Principal, DYPCET Kolhapur
+
+Qualification: Ph.D. in Electronics and Communication
+
+Email: principal.dypcet@dypgroup.edu.in
+
+Specialization: Electronics and Telecommunication
+​
+
+college website - coek.dypgroup.edu.in
+
+
+🏛️ Heads of Departments (HODs)
+
+Department	HOD Name
+Chemical Engineering	Prof. (Dr.) K. T. Jadhav
+Computer Science & Engineering	Prof. Radhika Jinendra Dhanal
+Mechanical Engineering	Dr. S. J. Raykar
+Civil Engineering	Dr. Kiran M. Mane
+Electronics & Telecommunication Engineering	Dr. Tanajirao B. Mohite-Patil
+Data Science	Dr. Ganesh V. Patil
+Artificial Intelligence & Machine Learning	Dr. Siddheshwar V. Patil
+Architecture	Prof. I. S. Jadhav
+
 
 🛠️ Available Tools
 
@@ -187,6 +206,9 @@ const availableFunctions: Record<string, Function> = {
 export async function POST(req: Request) {
 
   const { messages } = await req.json()
+  console.log()
+  console.log("user input:", messages[messages.length - 1].content);
+  console.log()
 
   const updatedMessages = [systemMessage, ...messages];
 
@@ -200,8 +222,17 @@ export async function POST(req: Request) {
 
   const responseMessage = response.choices[0].message
   const toolCalls = responseMessage.tool_calls;
-  console.log("First LLM Call (Tool Use) Response:", responseMessage)
-
+  console.log()
+  if(responseMessage.content != undefined){
+    console.log("First LLM Call Response: ", responseMessage.content)
+  }else{
+    console.log("using of tools decided by LLM" )
+  }
+  console.log()
+  if (responseMessage.content == undefined) {
+    console.log("tool calls: ")
+    console.log(toolCalls)
+  }
   if (toolCalls && toolCalls.length > 0) {
     // Add assistant's tool call message
     updatedMessages.push({
@@ -224,6 +255,7 @@ export async function POST(req: Request) {
 
       const functionArgs = JSON.parse(toolCall.function.arguments);
       const functionResponse = await func(functionArgs);
+      console.log(`Tool ${functionName} response: `, functionResponse);
 
       updatedMessages.push({
         role: "tool",
@@ -231,7 +263,9 @@ export async function POST(req: Request) {
         name: functionName,
         content: functionResponse,
       });
+      console.log("tool used: " + functionName)
     }
+
 
     // Final call to let the LLM incorporate the function results
     const secondResponse = await groq.chat.completions.create({
@@ -239,7 +273,9 @@ export async function POST(req: Request) {
       messages: updatedMessages,
     });
 
-    console.log("Second LLM Call Response:", secondResponse.choices[0].message);
+    console.log()
+    console.log("Second LLM Call Response:", secondResponse.choices[0].message.content);
+    console.log()
 
     const functionObj = { ...secondResponse.choices[0].message, role: "function", tool_used: toolCalls[0].function.name }
 
@@ -247,16 +283,18 @@ export async function POST(req: Request) {
       JSON.stringify({ message: functionObj }),
       { headers: { "Content-Type": "application/json" } }
     );
+  } else {
+    console.log()
+    console.log("tools not required here, returning the first LLM response....")
+    console.log()
+
+    // If no tool calls, just return original response
+    return new Response(
+      JSON.stringify({ message: responseMessage }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+
   }
-
-  // If no tool calls, just return original response
-  return new Response(
-    JSON.stringify({ message: responseMessage }),
-    { headers: { "Content-Type": "application/json" } }
-  );
-
-
-
 
 
   // IMP: stream code response code

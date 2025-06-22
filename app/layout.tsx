@@ -5,26 +5,28 @@ import { Toaster } from 'react-hot-toast'
 import '@/app/globals.css'
 import { fontMono, fontSans } from '@/lib/fonts'
 import { cn } from '@/lib/utils'
-import { Providers } from '@/components/providers'
-import { Header } from '@/components/header'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Humanloop Chatbot Stater',
-    template: `%s - Humanloop Chatbot Starter`
+    default: 'DYPCET Chatbot',
+    template: `%s - DYPCET Chatbot`,
   },
-  description:
-    'An AI-powered chatbot template built with Humanloop and Next.js.',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' }
-  ],
+  description: 'An AI-powered chatbot for DYPCET built with Groq and Next.js.',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png'
-  }
-}
+    apple: '/apple-touch-icon.png',
+  },
+};
+
+// This is new
+export const viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+};
+
 
 interface RootLayoutProps {
   children: React.ReactNode

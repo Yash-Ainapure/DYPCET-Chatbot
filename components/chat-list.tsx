@@ -18,6 +18,8 @@ export function ChatList({ messages }: ChatList) {
         let parsedMessage: any
         try {
           parsedMessage = JSON.parse(message.content)
+          console.log(parsedMessage.message)
+          console.log(parsedMessage.message.tool_used)
           return (
             <div key={index}>
               <ChatMessage message={parsedMessage.message} />
